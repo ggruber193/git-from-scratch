@@ -9,16 +9,7 @@ def is_git_directory(path: str | Path):
     refs_dir = c_path.joinpath('refs')
     head_file = c_path.joinpath('HEAD')
 
-    if head_file.exists():
-        with open(head_file) as f:
-            head_content = f.read().strip()
-
-        # is_syntax_ok_head = len(re.search(r"ref:\s+refs/heads/.*", head_content).groups()) > 0 # TODO: when is HEAD syntactically correct, for now just set to true is exists
-        is_syntax_ok_head = True
-    else:
-        is_syntax_ok_head = False
-
-    if is_syntax_ok_head and objects_dir.exists() and refs_dir.exists():
+    if head_file.exists() and objects_dir.exists() and refs_dir.exists():
         return True
 
     return False
