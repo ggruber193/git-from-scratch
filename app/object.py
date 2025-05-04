@@ -3,8 +3,11 @@ from abc import abstractmethod, ABC
 from enum import Enum
 from hashlib import sha1
 from pathlib import Path
+import re
 
 from app.utils.find_git_repo import get_current_git_repo
+from app.utils.parsing import KeyValueParser
+from app.utils.refs import ref_resolve
 
 
 class GitObjectTypes(Enum):
@@ -54,8 +57,16 @@ class GitBlob(GitObject):
 
 class GitCommit(GitObject):
     object_type = GitObjectTypes.commit
-    pass
 
+    def deserialize(self, data):
+        self.kvlm = self.parser_serializer.parse_key_value_list_with_message(data)
+
+    def serialize(self):
+        return self.parser_serializer.serialize_parse_key_value_list_with_message(self.kvlm)
+
+    def init(self):
+        self.kvlm = dict()
+        self.parser_serializer = KeyValueParser()
 
 class GitTreeLeaf:
     def __init__(self, mode, path, sha):
@@ -102,9 +113,8 @@ class GitTree(GitObject):
         return ret
 
 
-class GitTag(GitObject):
+class GitTag(GitCommit):
     object_type = GitObjectTypes.tag
-    pass
 
 
 class GitObjectReader:
@@ -114,6 +124,59 @@ class GitObjectReader:
         else:
             self.repo = repo
 
+    def _resolve_object(self, name):
+        candidates = []
+        hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
+
+        if name == 'HEAD':
+            return [ref_resolve(self.repo, name)]
+
+        if hashRE.match(name):
+            name = name.lower()
+            prefix = name[:2]
+            path = self.repo.joinpath("objects").joinpath(prefix)
+            if path.exists():
+                rem = name[2:]
+                for file in self.repo.joinpath("objects").joinpath(prefix).iterdir():
+                    if file.name.startswith(rem):
+                        candidates.append(prefix+file.name)
+
+        as_tag = ref_resolve(self.repo, "refs/tags/" + name)
+        if as_tag:
+            candidates.append(as_tag)
+        as_branch = ref_resolve(self.repo, "refs/heads/" + name)
+        if as_branch:
+            candidates.append(as_branch)
+
+        return candidates
+
+    def find_object(self, name, fmt=None, follow=True):
+        object_hash = self._resolve_object(name)
+        if not object_hash:
+            raise Exception(f"Can't find object {name}")
+        if len(object_hash) > 1:
+            raise Exception(f"Ambiguous object {name}")
+
+        object_hash = object_hash[0]
+        if not fmt:
+            return object_hash
+
+        while True:
+            obj = self.read(object_hash)
+
+            if obj.object_type == fmt:
+                return object_hash
+
+            if not follow:
+                return None
+
+            # Follow tags
+            if obj.object_type == 'tag':
+                object_hash = obj.kvlm[b'object'].decode("ascii")
+            elif obj.object_type == 'commit' and fmt == b'tree':
+                object_hash = obj.kvlm[b'tree'].decode("ascii")
+            else:
+                return None
 
     def _get_object_path(self, object_hash):
         object_path = f"{object_hash[:2]}/{object_hash[2:]}"
