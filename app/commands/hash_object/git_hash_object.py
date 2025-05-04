@@ -16,7 +16,7 @@ def git_hash_object(args):
 
     file_length = file_content.__sizeof__()
 
-    object_content = f"{object_type} {file_length}\x00{file_content}".encode()
+    object_content = f"{object_type} {file_length}\0{file_content}".encode()
     object_content = zlib.compress(object_content)
     object_hash = sha1(object_content).hexdigest()
 
