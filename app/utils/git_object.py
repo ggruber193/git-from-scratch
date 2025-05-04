@@ -1,5 +1,6 @@
 import zlib
 from hashlib import sha1
+from pathlib import Path
 
 from app.utils.find_git_repo import get_current_git_repo
 
@@ -22,6 +23,14 @@ def read_object(object_path, git_repo=None):
     object_length = contents.split(b' ', maxsplit=1)[1].split(b'\x00', maxsplit=1)[0]
 
     return object_type, object_length, object_content
+
+
+def create_blob(file_path: str | Path):
+    object_type = "blob"
+    with open(file_path, "r") as f:
+        contents = f.read()
+    object_length = len(contents)
+    return create_object(object_type, object_length, contents)
 
 
 def create_object(object_type, object_length, object_content):
