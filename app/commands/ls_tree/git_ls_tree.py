@@ -1,8 +1,44 @@
+import os
 import zlib
 from hashlib import sha1
 
+from app.object import GitObjectReader, GitTree, GitTreeLeaf
 from app.utils.find_git_repo import get_current_git_repo
-from app.utils.git_object import find_object, read_object
+
+
+class TreeOutputPrinter:
+    def __init__(self, names_only=False):
+        self.names_only = names_only
+
+    def print(self, item, file_type, prefix=""):
+        if self.names_only:
+            print(f"{os.path.join(prefix, item.path)}")
+        else:
+            print(f"{item.mode.decode('utf-8').zfill(6)} {file_type} {item.sha}\t{os.path.join(prefix, item.path)}")
+
+
+def ls_tree(git_repo, tree_printer, object_hash, git_reader: GitObjectReader, recursive: bool, prefix=""):
+    git_object: GitTree = git_reader.read(object_hash)
+
+    for item in git_object.items:
+        file_type = item.mode[:2]
+
+        match file_type:
+            case b'04':
+                file_type = "tree"
+            case b'10':
+                file_type = "blob"  # A regular file.
+            case b'12':
+                file_type = "blob"  # A symlink. Blob contents is link target.
+            case b'16':
+                file_type = "commit"  # A submodule
+            case _:
+                raise Exception(f"Weird tree leaf mode {item.mode}")
+
+        if not recursive or not file_type == "tree":
+            tree_printer.print(item, file_type, prefix)
+        else:
+            ls_tree(git_repo, tree_printer, item.sha, git_reader, recursive, os.path.join(prefix, item.path))
 
 
 def git_ls_tree(args):
@@ -10,30 +46,10 @@ def git_ls_tree(args):
 
     object_hash = args['object']
     name_only = args['name_only']
+    recursive = args['recursive']
 
-    object_type, object_length, object_content = read_object(object_hash, git_repo)
+    git_reader = GitObjectReader(git_repo)
+    tree_printer = TreeOutputPrinter(name_only)
 
-    tree_content = object_content
-    contents = []
-    while tree_content:
-        parts = tree_content.split(b'\x00', maxsplit=1)
+    ls_tree(git_repo, tree_printer, object_hash, git_reader, recursive=recursive)
 
-        mode = parts[0].split(b' ')[0].decode('utf-8')
-        filename = parts[0].split(b' ')[1].decode('utf-8')
-        sha_hash = parts[1][:20].hex()
-
-        c_type, c_length, c_content = read_object(sha_hash, git_repo)
-
-        entry = (mode, filename, sha_hash, c_type.decode('utf-8'))
-        contents.append(entry)
-
-        tree_content = parts[1][20:]
-
-    max_lengths = [max([len(j[i]) for j in contents]) for i in range(len(contents[0]))]
-
-    if name_only:
-        output = '\n'.join([i[1] for i in contents])
-    else:
-        output = '\n'.join([f"{i[0].zfill(max_lengths[0])} {i[3].zfill(max_lengths[3])} {i[2]}    {i[1]}" for i in contents])
-
-    print(output)

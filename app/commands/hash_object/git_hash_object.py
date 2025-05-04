@@ -1,8 +1,8 @@
 import zlib
 from hashlib import sha1
 
+from app.object import GitObjectWriter, GitBlob
 from app.utils.find_git_repo import get_current_git_repo
-from app.utils.git_object import create_object, calculate_object_hash, write_object
 
 
 def git_hash_object(args):
@@ -12,15 +12,9 @@ def git_hash_object(args):
     object_type = args['type']
     write_to_database = args['w']
 
-    with open(file_to_hash, 'r') as f:
-        file_content = f.read()
+    git_blob = GitBlob.from_file(file_to_hash)
 
-    file_length = len(file_content)
-
-    _object = create_object(object_type, file_length, file_content)
-    object_hash = calculate_object_hash(_object)
-
-    if write_to_database:
-        write_object(_object, object_hash, git_repo)
+    git_writer = GitObjectWriter(git_repo)
+    object_hash = git_writer.write(git_blob, write_to_database=write_to_database)
 
     print(object_hash)

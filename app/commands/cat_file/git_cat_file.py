@@ -1,8 +1,8 @@
 import zlib
 from typing import Any
 
+from app.object import GitObjectReader
 from app.utils.find_git_repo import get_current_git_repo
-from app.utils.git_object import read_object
 
 
 def git_cat_file(args: dict[str, Any]):
@@ -10,18 +10,17 @@ def git_cat_file(args: dict[str, Any]):
     object_hash = args["object"]
     print_content = args["cat_print_option"]
 
-    object_type, object_length, object_content = read_object(object_hash, git_repo)
+    git_reader = GitObjectReader(git_repo)
+    git_object = git_reader.read(object_hash)
 
     match print_content:
         case "p":
-            output = object_content
+            output = git_object.serialize().decode('utf-8')
         case "t":
-            output = object_type
+            output = git_object.object_type.value
         case "s":
-            output = object_length
+            output = len(git_object.serialize())
         case _:
             raise ValueError("")
-
-    output = output.decode('utf-8')
 
     print(output, end="")
