@@ -1,23 +1,26 @@
 import sys
 import os
+import logging
+import argparse
 
+
+from app.commands.init.git_init import git_init
 
 def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!", file=sys.stderr)
+    parser = argparse.ArgumentParser(description='Implementation of git from scratch')
 
-    # Uncomment this block to pass the first stage
-    #
-    # command = sys.argv[1]
-    # if command == "init":
-    #     os.mkdir(".git")
-    #     os.mkdir(".git/objects")
-    #     os.mkdir(".git/refs")
-    #     with open(".git/HEAD", "w") as f:
-    #         f.write("ref: refs/heads/main\n")
-    #     print("Initialized git directory")
-    # else:
-    #     raise RuntimeError(f"Unknown command #{command}")
+    subparsers = parser.add_subparsers(dest="subparser_name")
+
+    parser_init = subparsers.add_parser('init', description="Initialize new git repository")
+
+    args = parser.parse_args()
+    subcommand = args.subparser_name
+
+    match subcommand:
+        case 'init':
+            git_init()
+        case _:
+            raise ValueError(f"Invalid subcommand: {subcommand}.")
 
 
 if __name__ == "__main__":
