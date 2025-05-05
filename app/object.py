@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 
 from app.utils.find_git_repo import get_current_git_repo
-from app.utils.parsing import KeyValueParser
 from app.utils.refs import ref_resolve
 
 
@@ -66,7 +65,7 @@ class GitCommit(GitObject):
 
     def init(self):
         self.kvlm = dict()
-        self.parser_serializer = KeyValueParser()
+        self.parser_serializer = KeyValueParser(object_type=self.object_type)
 
 class GitTreeLeaf:
     def __init__(self, mode, path, sha):
@@ -111,7 +110,6 @@ class GitTree(GitObject):
         obj.items.sort(key=lambda item: item.path if item.mode.startswith(b'10') else item.path + '/')
         ret = ''.join([f"{i.mode} {i.path}\x00{int(i.sha, 16).to_bytes(20, byteorder='big')}" for i in obj.items]).encode('utf-8')
         return ret
-
 
 class GitTag(GitCommit):
     object_type = GitObjectTypes.tag
@@ -235,3 +233,28 @@ class GitObjectWriter:
                 f.write(zlib.compress(output_object))
 
         return object_hash
+
+
+class KeyValueParser:
+    commit_keys = [b'tree', b'parent', b'author', b'committer']
+    tag_keys = [b'object', b'type', b'tag', b'tagger']
+    message_key = b'commit_message'
+
+    def __init__(self, object_type: GitObjectTypes = GitObjectTypes.tag):
+        match object_type:
+            case GitObjectTypes.commit: self.keys = self.commit_keys
+            case GitObjectTypes.tag:    self.keys = self.tag_keys
+            case _: raise Exception(f"Unknown object type: {object_type}")
+    def parse_key_value_list_with_message(self, raw):
+        contents = raw.split(b"\n")
+        key_val = {i.split(b' ', maxsplit=1)[0]: i.split(b' ', maxsplit=1)[1] for i in contents if len(i.split(b' ')) > 1}
+        for key in key_val.keys():
+            if key not in self.keys:
+                message = key + b' ' + key_val[key]
+                key_val.pop(key)
+                key_val[self.message_key] = message
+        return key_val
+
+    def serialize_parse_key_value_list_with_message(self, kvlm: dict[bytes, bytes]):
+        ret = b'\n'.join([i + b' ' + kvlm[i] for i in self.keys]) + b'\n\n' + kvlm[self.message_key] + b'\n'
+        return ret

@@ -40,6 +40,15 @@ def ref_list(repo, path=None):
     for f in path.iterdir():
         pass
 
+
+def create_ref(repo, path, tag_hash):
+    full_path = Path(repo).joinpath("refs").joinpath(path)
+    with open(full_path, 'w') as f:
+        f.write(tag_hash+'\n')
+
+
+
+
 if __name__ == '__main__':
     repo = get_current_git_repo()
     ref = "refs/remotes/origin/HEAD"

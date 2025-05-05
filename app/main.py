@@ -19,22 +19,7 @@ from app.commands.tag.parser import tag_parser
 from app.commands.write_tree.git_write_tree import git_write_tree
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Implementation of git from scratch')
-
-    subparsers = parser.add_subparsers(dest="subparser_name")
-
-    parser_init = subparsers.add_parser('init', description="Initialize new git repository")
-    parser_cat_file = subparsers.add_parser('cat-file', parents=[cat_file_parser()], add_help=False, description="Read blobs")
-    parser_hash_object = subparsers.add_parser('hash-object', parents=[hash_object_parser()], add_help=False, description="Hash file")
-    parser_ls_tree = subparsers.add_parser('ls-tree', parents=[ls_tree_parser()], add_help=False,
-                                               description="ls tree")
-    parser_write_tree = subparsers.add_parser('write-tree', help="Write tree")
-    parser_log = subparsers.add_parser('log', help='Display commit history', parents=[log_parser()], add_help=False)
-    parser_checkout = subparsers.add_parser('checkout', help='Git checkout', parents=[checkout_parser()], add_help=False)
-    parser_checkout = subparsers.add_parser('tag', help='Git tag', parents=[tag_parser()], add_help=False)
-
-    args = parser.parse_args()
+def main(args):
     subcommand = args.subparser_name
 
     match subcommand:
@@ -59,4 +44,22 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Implementation of git from scratch')
+
+    subparsers = parser.add_subparsers(dest="subparser_name")
+
+    parser_init = subparsers.add_parser('init', description="Initialize new git repository")
+    parser_cat_file = subparsers.add_parser('cat-file', parents=[cat_file_parser()], add_help=False,
+                                            description="Read blobs")
+    parser_hash_object = subparsers.add_parser('hash-object', parents=[hash_object_parser()], add_help=False,
+                                               description="Hash file")
+    parser_ls_tree = subparsers.add_parser('ls-tree', parents=[ls_tree_parser()], add_help=False,
+                                           description="ls tree")
+    parser_write_tree = subparsers.add_parser('write-tree', help="Write tree")
+    parser_log = subparsers.add_parser('log', help='Display commit history', parents=[log_parser()], add_help=False)
+    parser_checkout = subparsers.add_parser('checkout', help='Git checkout', parents=[checkout_parser()],
+                                            add_help=False)
+    parser_tag = subparsers.add_parser('tag', help='Git tag', parents=[tag_parser()], add_help=False)
+
+    args = parser.parse_args()
+    main(args)
